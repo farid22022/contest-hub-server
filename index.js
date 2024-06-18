@@ -52,7 +52,7 @@ async function run() {
       const email = req.decoded.email;
       const query = { email: email };
       const user = await userCollection.findOne(query);
-      const isAdmin = user?.role === 'admin';
+      const isAdmin = user?.isAdmin === 'admin';
       if (!isAdmin) {
         return res.status(403).send({ message: 'forbidden access' });
       }
@@ -70,6 +70,9 @@ async function run() {
     })
 
 
+    //
+
+
 
     //contests related api
     app.post('/contests', async(req, res) =>{
@@ -77,17 +80,81 @@ async function run() {
       const result = await contestCollection.insertOne(contest);
       res.send(result);
     })
-    app.get('/contests',async (req, res) => {
-        const result = await contestCollection.find().toArray();
-        res.send(result);
-      });
 
+    
+    app.get('/contests',async (req, res) => {
+      const result = await contestCollection.find().toArray();
+      console.log('85')
+      res.send(result);
+    });
+    
+
+    
     app.get('/contests/:id', async (req, res) => {
       const id = req.params.id;
-      const query = { _id: id }
+      const query = { _id: new ObjectId(id) }
       const result = await contestCollection.findOne(query);
       res.send(result);
+    });
+
+    app.put('/contests/:id',async(req, res) =>{
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id)};
+      const options = {upsert: true};
+      const updatedTask = req.body;
+      const Task = {
+        $set:{
+        name:updatedTask.name,
+        description:updatedTask.description ,
+        price:updatedTask.price,
+        gift:updatedTask.gift ,
+        submission:updatedTask.submission ,
+        date:updatedTask.date ,
+        image:updatedTask.image,
+        tag:updatedTask.tag,
+        }
+      }
+
+      const result = await contestCollection.updateOne(filter, Task, options);
+      res.send(result);
     })
+
+    app.delete('/contests/:id', async(req, res) =>{
+      const id = req.params.id;
+      const query = { _id : new ObjectId(id)};
+      const result = await contestCollection.deleteOne(query);
+      res.send(result);
+    })
+
+    app.patch('/contests/:id',async(req, res) =>{
+      const id = req.params.id;
+      const filter = { _id : new ObjectId(id)};
+      const updatedUser = {
+        $set:{
+          accepted : true
+        }
+      }
+      const result = await contestCollection.updateOne(filter,updatedUser);
+      res.send(result);
+    })
+
+    // app.patch('/users/admin/:id',verifyToken,verifyAdmin, async( req, res) =>{
+    //   const id = req.params.id;
+    //   const filter = { _id : new ObjectId(id)};
+    //   const updatedUser = {
+    //     $set:{
+    //       isAdmin:'admin'
+    //     }
+    //   }
+    //   const result = await userCollection.updateOne(filter,updatedUser);
+    //   res.send(result);
+    // })
+  
+
+    
+
+    
+    
 
     
 
@@ -97,11 +164,27 @@ async function run() {
       const result = await submittedCollection.insertOne(item);
       res.send(result);
     });
+    app.get('/submits',async (req, res) => {
+      const name = req.query.name;
+      const query = { name : name};
+      const result = await submittedCollection.find().toArray();
+      res.send(result);
+    });
+    app.get('/submits/:name', async (req, res) => {
+      const name = req.params.name;
+      const query = { name : name }
+      const result = await submittedCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    
+    
+    
 
 
     
-  
-                 
+
+    
     //user related
     app.post('/users', async (req, res) => {
       const user = req.body;
@@ -126,15 +209,19 @@ async function run() {
       const id = req.params.id;
       const query = { _id : new ObjectId(id)};
       const result = await userCollection.deleteOne(query);
-      req.send(result);
+      res.send(result);
     })
+
+
+
+    //admin related
 
     app.patch('/users/admin/:id',verifyToken,verifyAdmin, async( req, res) =>{
       const id = req.params.id;
       const filter = { _id : new ObjectId(id)};
       const updatedUser = {
         $set:{
-          role:'admin'
+          isAdmin:'admin'
         }
       }
       const result = await userCollection.updateOne(filter,updatedUser);
@@ -155,10 +242,42 @@ async function run() {
       const user = await userCollection.findOne(query);
       let admin = false;
       if(user){
-        admin = user?.role === 'admin'
+        admin = user?.isAdmin === 'admin'
       }
       res.send({ admin })
     })
+
+    //creator related
+
+    app.patch('/users/creator/:id',verifyToken,verifyAdmin, async( req, res) =>{
+      const id = req.params.id;
+      const filter = { _id : new ObjectId(id)};
+      const updatedUser = {
+        $set:{
+          isCreator:'creator'
+        }
+      }
+      const result = await userCollection.updateOne(filter,updatedUser);
+      res.send(result);
+    })
+
+    app.get('/users/creator/:email',verifyToken, async(req, res) =>{
+      const email = req.params.email;
+      if(email !== req.decoded.email){
+        return res.status(403).send({message: 'unauthorized access'})
+      }
+
+      const query = { email: email};
+      const user = await userCollection.findOne(query);
+      let creator = false;
+      if(user){
+        creator = user?.isCreator === 'creator'
+      }
+      res.send({ creator })
+    })
+
+
+
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
