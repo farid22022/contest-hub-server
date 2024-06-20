@@ -31,6 +31,7 @@ async function run() {
     const contestCollection = client.db("contestDB").collection("contests")
     const userCollection = client.db("contestDB").collection("users")
     const submittedCollection = client.db("contestDB").collection("submits");
+    const winnerCollection = client.db("contestDB").collection("winnerDetails");
 
 
     ///middle ware
@@ -168,14 +169,44 @@ async function run() {
       const name = req.query.name;
       const query = { name : name};
       const result = await submittedCollection.find().toArray();
+      console.log('172');
       res.send(result);
     });
     app.get('/submits/:name', async (req, res) => {
       const name = req.params.name;
       const query = { name : name }
       const result = await submittedCollection.find(query).toArray();
+      console.log('179');
       res.send(result);
     });
+
+    app.patch('/submits', async (req, res) => {
+      const name = req.query.name;  // or req.params.name if you are using path parameters
+      const anotherParam = req.query.anotherParam
+      const query = { name: name };
+      console.log(query.name);
+      const results = await submittedCollection.find(query).toArray();
+      console.log(results);
+      // Update each document to add winner: "yes"
+      const updatePromises = results.map(result =>
+        submittedCollection.updateOne(
+          { _id: result._id },
+          { $set: { winner: `${anotherParam}` } }
+        )
+      );
+
+      const updateResults = await Promise.all(updatePromises);
+
+      // Log each update result for debugging
+      updateResults.forEach((updateResult, index) => {
+        console.log(`Document ${index + 1}:`, updateResult);
+      });
+
+      res.status(200).json({ message: "Documents updated successfully", updatedCount: updatePromises.length });
+    });
+  
+  
+
 
     
     
@@ -274,6 +305,39 @@ async function run() {
         creator = user?.isCreator === 'creator'
       }
       res.send({ creator })
+    })
+
+
+    //winner details
+    app.post('/winnerDetails', async(req,res) =>{
+      const detail = req.body;
+      const result = await winnerCollection.insertOne(detail);
+      res.send(result);
+    })
+
+    app.get('/winnerDetails',async (req, res) => {
+      const result = await winnerCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.put('/winnerDetails/',async(req, res) =>{
+      const options = {upsert: true};
+      const updatedTask = req.body;
+      const Task = {
+        $set:{
+        name:updatedTask.name,
+        description:updatedTask.description ,
+        price:updatedTask.price,
+        gift:updatedTask.gift ,
+        submission:updatedTask.submission ,
+        date:updatedTask.date ,
+        image:updatedTask.image,
+        tag:updatedTask.tag,
+        }
+      }
+
+      const result = await contestCollection.updateOne(filter, Task, options);
+      res.send(result);
     })
 
 
