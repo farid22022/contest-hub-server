@@ -32,17 +32,18 @@ async function run() {
     const userCollection = client.db("contestDB").collection("users")
     const submittedCollection = client.db("contestDB").collection("submits");
     const winnerCollection = client.db("contestDB").collection("winnerDetails");
+    const commentCollection = client.db("contestDB").collection("commentDetails");
 
 
     ///middle ware
     const verifyToken = (req ,res, next) =>{
       if(!req.headers.authorization){
-        return res.status(403).se({message: 'forbidden Access'})
+        return res.status(403).send({message: 'forbidden Access'})
       }
       const token = req.headers.authorization.split(' ')[1];
       jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) =>{
         if(err){
-          return res.status(403).se({message: 'forbidden Access'})
+          return res.status(403).send({message: 'forbidden Access'})
         }
         req.decoded = decoded;
         next();
@@ -53,7 +54,7 @@ async function run() {
       const email = req.decoded.email;
       const query = { email: email };
       const user = await userCollection.findOne(query);
-      const isAdmin = user?.isAdmin === 'admin';
+      const isAdmin = user?.role === 'admin';
       if (!isAdmin) {
         return res.status(403).send({ message: 'forbidden access' });
       }
@@ -231,7 +232,7 @@ async function run() {
     });
 
     app.get('/users',verifyToken,verifyAdmin, async(req,res) =>{
-      console.log(req.headers);
+      console.log( 'user get',req.headers);
       const result = await userCollection.find().toArray();
       res.send(result);
     })
@@ -252,7 +253,7 @@ async function run() {
       const filter = { _id : new ObjectId(id)};
       const updatedUser = {
         $set:{
-          isAdmin:'admin'
+          role:'admin'
         }
       }
       const result = await userCollection.updateOne(filter,updatedUser);
@@ -273,7 +274,7 @@ async function run() {
       const user = await userCollection.findOne(query);
       let admin = false;
       if(user){
-        admin = user?.isAdmin === 'admin'
+        admin = user?.role === 'admin'
       }
       res.send({ admin })
     })
@@ -285,7 +286,7 @@ async function run() {
       const filter = { _id : new ObjectId(id)};
       const updatedUser = {
         $set:{
-          isCreator:'creator'
+          role:'creator'
         }
       }
       const result = await userCollection.updateOne(filter,updatedUser);
@@ -302,7 +303,7 @@ async function run() {
       const user = await userCollection.findOne(query);
       let creator = false;
       if(user){
-        creator = user?.isCreator === 'creator'
+        creator = user?.role === 'creator'
       }
       res.send({ creator })
     })
@@ -337,6 +338,15 @@ async function run() {
       }
 
       const result = await contestCollection.updateOne(filter, Task, options);
+      res.send(result);
+    })
+
+
+
+    //comment 
+    app.post('/commentDetails', async(req,res) =>{
+      const comment = req.body;
+      const result = await commentCollection.insertOne(comment);
       res.send(result);
     })
 
