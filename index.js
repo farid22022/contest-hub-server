@@ -6,7 +6,15 @@ require('dotenv').config();
 const port = process.env.PORT || 5000;
 
 // middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'https://contest-hub-2af37.web.app',
+    'https://contest-hub-2af37.firebaseapp.com'
+  ],
+  credentials: true,
+}));
 app.use(express.json());
 
 
@@ -33,6 +41,7 @@ async function run() {
     const submittedCollection = client.db("contestDB").collection("submits");
     const winnerCollection = client.db("contestDB").collection("winnerDetails");
     const commentCollection = client.db("contestDB").collection("commentDetails");
+    const personalCollection = client.db("contestDB").collection("personalDetails");
 
 
     ///middle ware
@@ -140,6 +149,8 @@ async function run() {
       res.send(result);
     })
 
+    
+
     // app.patch('/users/admin/:id',verifyToken,verifyAdmin, async( req, res) =>{
     //   const id = req.params.id;
     //   const filter = { _id : new ObjectId(id)};
@@ -205,6 +216,32 @@ async function run() {
 
       res.status(200).json({ message: "Documents updated successfully", updatedCount: updatePromises.length });
     });
+
+
+    //access
+
+    app.patch('/users/accessOn/:id',verifyToken,verifyAdmin, async( req, res) =>{
+      const id = req.params.id;
+      const filter = { _id : new ObjectId(id)};
+      const updatedUser = {
+        $set:{
+          access:'on'
+        }
+      }
+      const result = await userCollection.updateOne(filter,updatedUser);
+      res.send(result);
+    })
+    app.patch('/users/accessOff/:id',verifyToken,verifyAdmin, async( req, res) =>{
+      const id = req.params.id;
+      const filter = { _id : new ObjectId(id)};
+      const updatedUser = {
+        $set:{
+          access:'off'
+        }
+      }
+      const result = await userCollection.updateOne(filter,updatedUser);
+      res.send(result);
+    })
   
   
 
@@ -231,7 +268,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/users',verifyToken,verifyAdmin, async(req,res) =>{
+    app.get('/users',verifyToken, async(req,res) =>{
       console.log( 'user get',req.headers);
       const result = await userCollection.find().toArray();
       res.send(result);
@@ -309,6 +346,13 @@ async function run() {
     })
 
 
+
+
+    
+
+    
+
+
     //winner details
     app.post('/winnerDetails', async(req,res) =>{
       const detail = req.body;
@@ -350,12 +394,64 @@ async function run() {
       res.send(result);
     })
 
+    app.get('/commentDetails',async (req, res) => {
+      const result = await commentCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.delete('/commentDetails/:id', async(req, res) =>{
+      const id = req.params.id;
+      console.log(id);
+      const query = { _id : new ObjectId(id)};
+      const result = await commentCollection.deleteOne(query);
+      res.send(result);
+    })
+    
+
+
+    //personal
+
+    app.post('/personalDetails',  async (req, res) => {
+      const item = req.body;
+      const result = await personalCollection.insertOne(item);
+      res.send(result);
+    });
+
+    app.get('/personalDetails',async (req, res) => {
+      const result = await personalCollection.find().toArray();
+      res.send(result);
+    });
+    
+
+    app.patch('/personalDetails/accessOff',verifyToken,verifyAdmin, async( req, res) =>{
+      const email = req.query.email
+      const query = { email: email};
+      const updatedUser = {
+        $set:{
+          access:'off'
+        }
+      }
+      const result = await personalCollection.updateOne(query,updatedUser);
+      res.send(result);
+    })
+    app.patch('/personalDetails/accessOn',verifyToken,verifyAdmin, async( req, res) =>{
+      const email = req.query.email
+      const query = { email: email};
+      const updatedUser = {
+        $set:{
+          access:'on'
+        }
+      }
+      const result = await personalCollection.updateOne(query,updatedUser);
+      res.send(result);
+    })
+
 
 
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
